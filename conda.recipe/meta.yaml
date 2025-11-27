@@ -1,0 +1,45 @@
+{% set name = "pycalceff" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  entry_points:
+    - pycalceff = pycalceff.main:app
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python >=3.11
+    - setuptools >=61.0
+    - pip
+  run:
+    - python >=3.11
+    - typer
+    - rich
+    - scipy
+
+test:
+  imports:
+    - pycalceff
+  commands:
+    - pip check
+    - pycalceff --help
+  requires:
+    - pip
+
+about:
+  summary: A Python project for calculating efficiencies.
+  license: BSD-3-Clause
+  license_file: LICENSE
+
+extra:
+  recipe-maintainers:
+    - marcpaterno

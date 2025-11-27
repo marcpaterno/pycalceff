@@ -1,0 +1,10 @@
+# Example efficiency data
+# Format: k n (successes, trials)
+# Example efficiency data
+# Format: k n (successes, trials)
+10 20
+5 15
+8 12
+3 10
+1 100
+99 100

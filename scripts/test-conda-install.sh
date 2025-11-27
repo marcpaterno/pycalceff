@@ -1,0 +1,183 @@
+#!/bin/bash
+#
+# test-conda-install.sh - Comprehensive conda package build & install test
+# Usage: ./scripts/test-conda-install.sh
+
+set -uo pipefail  # Exit on undefined vars, pipe failures (removed -e for manual error handling)
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Configuration
+readonly PROJECT_NAME="pycalceff"
+readonly PYTHON_VERSION="3.13"
+readonly BUILD_ENV_NAME="${PROJECT_NAME}-build"
+readonly INSTALL_ENV_NAME="${PROJECT_NAME}-install"
+readonly RECIPE_DIR="conda.recipe"
+readonly BUILD_OUTPUT_DIR="/tmp/conda-build-test"
+readonly META_YAML="${RECIPE_DIR}/meta.yaml"
+
+# Status tracking
+SCRIPT_STATUS="success"
+
+# Logging functions
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+
+# Test runner function
+run_test() {
+    local test_name="$1"
+    local command="$2"
+    log_info "Testing: $test_name"
+    if eval "$command"; then
+        log_success "$test_name passed"
+    else
+        SCRIPT_STATUS="failed"
+        echo -e "${RED}========================================${NC}"
+        log_error "TEST FAILED: $test_name"
+        log_error "Command: $command"
+        log_error "Exit Code: $?"
+        echo -e "${RED}========================================${NC}"
+        exit 1
+    fi
+}
+
+# Cleanup function
+cleanup() {
+    log_info "🧹 Running cleanup..."
+    rm -rf "${BUILD_OUTPUT_DIR}"
+    # Restore meta.yaml if backup exists
+    if [[ -f "${META_YAML}.bak" ]]; then
+        mv "${META_YAML}.bak" "${META_YAML}"
+        log_info "📄 Restored original meta.yaml"
+    fi
+    if [[ $SCRIPT_STATUS == "success" ]]; then
+        log_success "Cleanup completed."
+        conda env remove -n "${BUILD_ENV_NAME}" -y 2>/dev/null || true
+        conda env remove -n "${INSTALL_ENV_NAME}" -y 2>/dev/null || true
+    else
+        log_error "Cleanup completed after test failure."
+        # Only clean up build env, leave install env for debugging
+        conda env remove -n "${BUILD_ENV_NAME}" -y 2>/dev/null || true
+        log_warning "Install environment '${INSTALL_ENV_NAME}' preserved for debugging."
+    fi
+}
+
+# Set trap for cleanup on any exit (including errors)
+trap cleanup EXIT
+
+# Check prerequisites
+log_info "🔍 Checking prerequisites..."
+
+if [[ ! -d "${RECIPE_DIR}" ]]; then
+    log_error "Conda recipe directory '${RECIPE_DIR}' not found!"
+    exit 1
+fi
+
+if [[ ! -f "${META_YAML}" ]]; then
+    log_error "meta.yaml not found at '${META_YAML}'!"
+    exit 1
+fi
+
+if ! command -v conda &> /dev/null; then
+    log_error "Conda not found in PATH!"
+    exit 1
+fi
+
+log_success "✅ Prerequisites satisfied"
+
+# Main execution
+log_info "🚀 Testing conda package installation locally..."
+
+# 1. Backup and modify meta.yaml
+log_info "📄 Backing up and modifying meta.yaml..."
+cp "${META_YAML}" "${META_YAML}.bak"
+sed -i.bak "s|url:.*|path: ..|" "${META_YAML}"
+
+# 2. Create build environment
+log_info "🐍 Creating build environment..."
+conda create -n "${BUILD_ENV_NAME}" python="${PYTHON_VERSION}" conda-build -y
+
+# 3. Build package
+log_info "🔨 Building conda package..."
+if ! conda run -n "${BUILD_ENV_NAME}" \
+    conda build --no-anaconda-upload --output-folder "${BUILD_OUTPUT_DIR}" "${RECIPE_DIR}/"; then
+    log_error "Failed to build conda package"
+    exit 1
+fi
+
+# 4. Find built package
+log_info "📦 Locating built package..."
+BUILD_ARTIFACT=$(find "${BUILD_OUTPUT_DIR}" -name "${PROJECT_NAME}-*.conda" | head -1)
+if [[ -z "${BUILD_ARTIFACT}" ]]; then
+    log_error "No .conda package found in ${BUILD_OUTPUT_DIR}"
+    exit 1
+fi
+log_success "Found package: ${BUILD_ARTIFACT}"
+
+# Get version from pyproject.toml
+log_info "🔎 Reading version from pyproject.toml..."
+readonly VERSION=$(grep "^version" pyproject.toml | head -1 | awk -F'"' '{print $2}')
+log_success "Found version: ${VERSION}"
+
+# 5. Create install environment and install package
+log_info "🐍 Creating install environment and installing package..."
+if ! conda create -n "${INSTALL_ENV_NAME}" --use-local --channel "${BUILD_OUTPUT_DIR}" --channel conda-forge -y "${PROJECT_NAME}=${VERSION}"; then
+    log_error "Failed to create environment or install built package"
+    exit 1
+fi
+
+
+# 7. Run comprehensive tests
+log_info "🧪 Running installation tests..."
+
+# Test CLI version
+log_info "Testing: ${PROJECT_NAME} --version"
+if ! VERSION_OUTPUT=$(conda run -n "${INSTALL_ENV_NAME}" "${PROJECT_NAME}" --version); then
+    SCRIPT_STATUS="failed"
+    echo -e "${RED}========================================${NC}"
+    log_error "TEST FAILED: ${PROJECT_NAME} --version"
+    log_error "Command: conda run -n \"${INSTALL_ENV_NAME}\" \"${PROJECT_NAME}\" --version"
+    log_error "Exit Code: $?"
+    echo -e "${RED}========================================${NC}"
+    exit 1
+fi
+log_success "Version: ${VERSION_OUTPUT}"
+
+# Test CLI help
+log_info "Testing: ${PROJECT_NAME} --help"
+if ! conda run -n "${INSTALL_ENV_NAME}" "${PROJECT_NAME}" --help > /dev/null; then
+    SCRIPT_STATUS="failed"
+    echo -e "${RED}========================================${NC}"
+    log_error "TEST FAILED: ${PROJECT_NAME} --help"
+    log_error "Command: conda run -n \"${INSTALL_ENV_NAME}\" \"${PROJECT_NAME}\" --help > /dev/null"
+    log_error "Exit Code: $?"
+    echo -e "${RED}========================================${NC}"
+    exit 1
+fi
+log_success "Help command successful"
+
+# Test Python import
+log_info "Testing: Python import"
+if ! IMPORT_TEST=$(conda run -n "${INSTALL_ENV_NAME}" python -c "import ${PROJECT_NAME}; print('✅ Import successful!'); print(f'Version: {${PROJECT_NAME}.__version__}')"); then
+    SCRIPT_STATUS="failed"
+    echo -e "${RED}========================================${NC}"
+    log_error "TEST FAILED: Python import"
+    log_error "Command: conda run -n \"${INSTALL_ENV_NAME}\" python -c \"import ${PROJECT_NAME}; print('✅ Import successful!'); print(f'Version: {${PROJECT_NAME}.__version__}')\")"
+    log_error "Exit Code: $?"
+    echo -e "${RED}========================================${NC}"
+    exit 1
+fi
+log_success "${IMPORT_TEST}"
+
+# Success!
+SCRIPT_STATUS="success"
+log_success "🎉 All tests passed successfully!"
+log_success "✅ Conda installation test completed!"
+

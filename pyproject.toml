@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycalceff"
+version = "0.1.0"
+authors = [
+  { name="Marc Paterno", email="paterno@fnal.gov" },
+]
+description = "A Python project for calculating efficiencies."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "typer",
+    "rich",
+    "scipy",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/marcpaterno/pycalceff"
+"Bug Tracker" = "https://github.com/marcpaterno/pycalceff/issues"
+
+[project.scripts]
+pycalceff = "pycalceff.main:app"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "pytest",
+    "pytest-cov",
+    "mypy",
+    "ruff",
+    "types-setuptools",
+    "scipy-stubs",
+    "hypothesis",
+    "sphinx",
+    "sphinx-autodoc-typehints",
+    "pydata-sphinx-theme",
+    "sphinx-copybutton",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+package-data = {"pycalceff.data" = ["*.txt"]}
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = "setuptools"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]

@@ -1,0 +1,7 @@
+exclude tests/*
+exclude *.pyc
+exclude __pycache__/*
+exclude .DS_Store
+global-exclude *.pyc
+global-exclude __pycache__/*
+global-exclude .DS_Store
