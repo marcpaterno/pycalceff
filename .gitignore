@@ -117,3 +117,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Profile data
+*.prof
+data.txt
