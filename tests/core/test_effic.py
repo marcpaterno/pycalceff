@@ -8,13 +8,15 @@ import pytest
 import scipy.stats as stats
 
 from pycalceff.core.effic import (
+    BoundDirection,
     beta_ab,
+    beta_logpdf,
+    beta_pdf,
     effic,
-    interval,
     posterior_density,
     probability_mass,
-    searchlower,
-    searchupper,
+    search_bound,
+    shortest_hpd_beta,
 )
 
 
@@ -30,16 +32,16 @@ def test_beta_ab() -> None:
     assert result == pytest.approx(expected, abs=1e-6)
 
 
-def test_searchupper() -> None:
-    """Test searchupper function."""
+def test_search_bound_upper() -> None:
+    """Test search_bound for upper bound."""
     # For k=10, N=20, low=0.4, c=0.8
-    result = searchupper(0.4, 10, 20, 0.8)
+    result = search_bound(0.4, 10, 20, 0.8, BoundDirection.UPPER)
     assert result > 0.4
     assert result <= 1.0
 
 
-def test_searchupper_integral_too_small() -> None:
-    """Test searchupper raises ValueError when integral < c."""
+def test_search_bound_upper_integral_too_small() -> None:
+    """Test search_bound raises ValueError when integral < c for upper."""
     # Use parameters where the upper tail has very little probability mass
     low = 0.8
     k = 5
@@ -49,18 +51,18 @@ def test_searchupper_integral_too_small() -> None:
     with pytest.raises(
         ValueError, match="Cannot find upper bound: insufficient mass"
     ):
-        searchupper(low, k, ntrials, c)
+        search_bound(low, k, ntrials, c, BoundDirection.UPPER)
 
 
-def test_searchupper_exact_integral() -> None:
-    """Test searchupper when integral from low to 1.0 exactly equals c."""
+def test_search_bound_upper_exact_integral() -> None:
+    """Test search_bound when integral from low to 1.0 exactly equals c."""
     # For k=1, N=2, beta_ab(0.5, 1.0, 1, 2) = 0.5
-    result = searchupper(0.5, 1, 2, 0.5)
+    result = search_bound(0.5, 1, 2, 0.5, BoundDirection.UPPER)
     assert result == 1.0
 
 
-def test_searchlower_integral_too_small() -> None:
-    """Test searchlower raises ValueError when integral < c."""
+def test_search_bound_lower_integral_too_small() -> None:
+    """Test search_bound raises ValueError when integral < c for lower."""
     # Use parameters where the lower tail has very little probability mass
     high = 0.05
     k = 99
@@ -70,33 +72,66 @@ def test_searchlower_integral_too_small() -> None:
     with pytest.raises(
         ValueError, match="Cannot find lower bound: insufficient mass"
     ):
-        searchlower(high, k, ntrials, c)
+        search_bound(high, k, ntrials, c, BoundDirection.LOWER)
 
     # Verify the condition
     integral = beta_ab(0.0, high, k, ntrials)
     assert integral < c
 
 
-def test_searchlower_exact_integral() -> None:
-    """Test searchlower when integral from 0.0 to high exactly equals c."""
+def test_search_bound_lower_exact_integral() -> None:
+    """Test search_bound when integral from 0.0 to high exactly equals c."""
     # For k=1, N=2, beta_ab(0.0, 0.5, 1, 2) = 0.5
-    result = searchlower(0.5, 1, 2, 0.5)
+    result = search_bound(0.5, 1, 2, 0.5, BoundDirection.LOWER)
     assert result == 0.0
 
 
-def test_searchlower() -> None:
-    """Test searchlower function."""
+def test_search_bound_lower() -> None:
+    """Test search_bound for lower bound."""
     # For k=10, N=20, high=0.6, c=0.8
-    result = searchlower(0.6, 10, 20, 0.8)
+    result = search_bound(0.6, 10, 20, 0.8, BoundDirection.LOWER)
     assert result < 0.6
     assert result >= 0.0
 
 
-def test_interval() -> None:
-    """Test interval function."""
-    # For low=0.4, k=10, N=20, conflevel=0.8
-    result = interval(0.4, 10, 20, 0.8)
-    assert result > 0
+def test_beta_logpdf() -> None:
+    """Test beta_logpdf against scipy.stats.beta.logpdf."""
+    k, ntrials = 5, 10
+    x = 0.5
+    result = beta_logpdf(x, k, ntrials)
+    expected = stats.beta.logpdf(x, k + 1, ntrials - k + 1)
+    assert result == pytest.approx(expected, abs=1e-10)
+
+
+def test_beta_pdf() -> None:
+    """Test beta_pdf against scipy.stats.beta.pdf."""
+    k, ntrials = 3, 8
+    x = 0.4
+    result = beta_pdf(x, k, ntrials)
+    expected = stats.beta.pdf(x, k + 1, ntrials - k + 1)
+    assert result == pytest.approx(expected, abs=1e-10)
+
+
+def test_shortest_hpd_beta() -> None:
+    """Test shortest_hpd_beta for correctness."""
+    k, ntrials, C = 5, 10, 0.95
+    a, b = shortest_hpd_beta(k, ntrials, C)
+
+    # Check bounds
+    assert 0 <= a < b <= 1
+
+    # Check mass containment
+    from scipy.special import betainc
+
+    alpha = k + 1
+    beta_param = ntrials - k + 1
+    mass = betainc(alpha, beta_param, b) - betainc(alpha, beta_param, a)
+    assert mass == pytest.approx(C, abs=1e-6)
+
+    # Check equal heights (approximately)
+    pdf_a = beta_pdf(a, k, ntrials)
+    pdf_b = beta_pdf(b, k, ntrials)
+    assert pdf_a == pytest.approx(pdf_b, rel=1e-3)
 
 
 def test_effic_known_values() -> None:

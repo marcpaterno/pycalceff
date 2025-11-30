@@ -4,15 +4,38 @@ CLI commands for pycalceff.
 Defines the Typer application and command handlers for the CLI interface.
 """
 
+from functools import partial
+from typing import cast
+
 import typer
+from scipy.optimize import bisect, brenth, brentq, ridder, toms748
 
 from .. import __version__ as version
 from ..core.cli_utils import (
     parse_efficiency_data,
     validate_conflevel_input,
 )
+from ..core.effic import DEFAULT_ROOT_FINDER_BRENTH, HPDAlgorithm, RootFinder
+
+# Supported root finders for CLI
+SUPPORTED_ROOT_FINDERS = {"bisect", "brenth", "brentq", "ridder", "toms748"}
+
+# Order for displaying root finders by speed (fastest first)
+ROOT_FINDER_SPEED_ORDER = ["brenth", "brentq", "toms748", "ridder", "bisect"]
+assert SUPPORTED_ROOT_FINDERS == set(ROOT_FINDER_SPEED_ORDER)
 
 HELP_OPTIONS = ["-h", "-?", "--help"]
+
+# Default options for CLI
+DEFAULT_ROOT_FINDER = DEFAULT_ROOT_FINDER_BRENTH
+
+# CLI option definitions
+ROOT_FINDER_OPTION = typer.Option(
+    None,
+    "--root-finder",
+    "-r",
+    help=f"Root finder (ordered by speed): {', '.join(ROOT_FINDER_SPEED_ORDER)}",
+)
 
 app = typer.Typer(
     name="pycalceff",
@@ -47,6 +70,7 @@ def main(
     use_csv: bool = typer.Option(
         False, "--use-csv", "-c", help="Use CSV format for output file"
     ),
+    root_finder_str: str | None = ROOT_FINDER_OPTION,
     version: bool = typer.Option(None, "--version", callback=version_callback),
 ) -> None:
     """
@@ -75,5 +99,27 @@ def main(
         typer.echo("--use-csv requires --out to be specified", err=True)
         raise typer.Exit(1)
 
+    # Determine algorithm and root finder based on --root-finder presence
+    if root_finder_str is not None:
+        if root_finder_str not in SUPPORTED_ROOT_FINDERS:
+            typer.echo(f"Unsupported root finder: {root_finder_str}", err=True)
+            supported = ", ".join(ROOT_FINDER_SPEED_ORDER)
+            typer.echo(f"Supported root finders: {supported}", err=True)
+            raise typer.Exit(1)
+        algorithm = HPDAlgorithm.ROOT_FINDING
+        root_finder_map = {
+            "bisect": cast(RootFinder, bisect),
+            "brenth": cast(RootFinder, brenth),
+            "brentq": cast(RootFinder, brentq),
+            "ridder": cast(RootFinder, ridder),
+            "toms748": cast(RootFinder, partial(toms748, k=1)),
+        }
+        actual_root_finder = root_finder_map[root_finder_str]
+    else:
+        algorithm = HPDAlgorithm.BINARY_SEARCH
+        actual_root_finder = None
+
     conflevel = validate_conflevel_input(conflevel)
-    parse_efficiency_data(filename, conflevel, out, use_csv)
+    parse_efficiency_data(
+        filename, conflevel, out, use_csv, algorithm, actual_root_finder
+    )

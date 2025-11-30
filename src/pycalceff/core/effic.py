@@ -7,12 +7,24 @@ Functions are translated from C++ implementations for numerical accuracy.
 """
 
 from collections.abc import Callable
+from enum import Enum
 from functools import partial
 from typing import Any, Protocol, cast
 
+import numpy as np
 from scipy import stats
 from scipy.optimize import bisect, brenth, brentq, ridder, toms748
-from scipy.special import betainc
+from scipy.special import betainc, betaincinv, betaln
+
+
+class BoundDirection(Enum):
+    UPPER = "upper"
+    LOWER = "lower"
+
+
+class HPDAlgorithm(Enum):
+    ROOT_FINDING = "root_finding"
+    BINARY_SEARCH = "binary_search"
 
 
 class RootFinder(Protocol):
@@ -92,7 +104,9 @@ def compute_hpd_interval_k_zero(
     :returns: Tuple of (low, high) bounds of the HPD interval
     """
     low = 0.0
-    high = searchupper(low, 0, ntrials, conflevel, root_finder)
+    high = search_bound(
+        low, 0, ntrials, conflevel, BoundDirection.UPPER, root_finder
+    )
     return low, high
 
 
@@ -111,7 +125,9 @@ def compute_hpd_interval_k_ntrials(
     :returns: Tuple of (low, high) bounds of the HPD interval
     """
     high = 1.0
-    low = searchlower(high, ntrials, ntrials, conflevel, root_finder)
+    low = search_bound(
+        high, ntrials, ntrials, conflevel, BoundDirection.LOWER, root_finder
+    )
     return low, high
 
 
@@ -161,6 +177,7 @@ def compute_hpd_interval(
     ntrials: int,
     conflevel: float,
     root_finder: RootFinder = DEFAULT_ROOT_FINDER,
+    algorithm: HPDAlgorithm = HPDAlgorithm.BINARY_SEARCH,
 ) -> tuple[float, float]:
     """
     Compute the highest posterior density (HPD) interval
@@ -170,6 +187,8 @@ def compute_hpd_interval(
     :param ntrials: Number of trials
     :param conflevel: Confidence level (0 < conflevel < 1)
     :param root_finder: Root-finding algorithm to use (default: brentq)
+    :param algorithm: HPD interval algorithm to use
+        (default: BINARY_SEARCH)
     :returns: Tuple of (low, high) bounds of the HPD interval
     """
     if k == 0:
@@ -177,10 +196,16 @@ def compute_hpd_interval(
     elif k == ntrials:
         return compute_hpd_interval_k_ntrials(ntrials, conflevel, root_finder)
     else:
-        return compute_hpd_interval_general(k, ntrials, conflevel, root_finder)
+        if algorithm == HPDAlgorithm.ROOT_FINDING:
+            return compute_hpd_interval_general(
+                k, ntrials, conflevel, root_finder
+            )
+        else:  # BINARY_SEARCH
+            a, b = shortest_hpd_beta(k, ntrials, conflevel)
+            return a, b
 
 
-def beta_ab(a: float, b: float, k: int, N: int) -> float:
+def beta_ab(a: float, b: float, k: int, ntrials: int) -> float:
     """
     Calculate the fraction of the area under the beta distribution
     x^k * (1-x)^(N-k) between x=a and x=b.
@@ -188,107 +213,173 @@ def beta_ab(a: float, b: float, k: int, N: int) -> float:
     :param a: Lower bound of the interval
     :param b: Upper bound of the interval
     :param k: Number of successes
-    :param N: Number of trials
+    :param ntrials: Number of trials
     :returns: The fraction of the area under the beta distribution
     """
     if a == b:
         return 0.0
     c1 = k + 1
-    c2 = N - k + 1
+    c2 = ntrials - k + 1
     return float(betainc(c1, c2, b) - betainc(c1, c2, a))
 
 
-def searchupper(
-    low: float,
-    k: int,
-    numtrials: int,
-    c: float,
-    root_finder: RootFinder = DEFAULT_ROOT_FINDER_BISECT,
-) -> float:
-    """
-    Find the upper edge of the integration region starting at low
-    that contains probability content c.
-
-    :param low: Lower bound of the search interval
-    :param k: Number of successes
-    :param numtrials: Number of trials
-    :param c: Probability content
-    :param root_finder: Root-finding algorithm to use (default: bisect)
-    :returns: The upper edge of the interval
-    """
-    integral = beta_ab(low, 1.0, k, numtrials)
-    if integral == c:
-        return 1.0
-    if integral < c:
-        raise ValueError(
-            f"Cannot find upper bound: insufficient mass from {low} to 1.0 "
-            f"(integral={integral}, required={c})"
-        )
-
-    # Use root_finder for root finding
-    def func(x: float) -> float:
-        return beta_ab(low, x, k, numtrials) - c
-
-    try:
-        return float(root_finder(func, low, 1.0, xtol=1e-12))
-    except ValueError:
-        raise ValueError(
-            f"Bisection failed for upper bound search from {low} to 1.0"
-        ) from None
-
-
-def searchlower(
-    high: float,
+def search_bound(
+    bound: float,
     k: int,
     ntrials: int,
-    c: float,
+    conflevel: float,
+    direction: BoundDirection,
     root_finder: RootFinder = DEFAULT_ROOT_FINDER_BISECT,
 ) -> float:
     """
-    Find the lower edge of the integration region ending at high
-    that contains probability content c.
+    Find the boundary (upper or lower) of the integration region that contains
+    probability content c, starting/ending at the given bound.
 
-    :param high: Upper bound of the search interval
+    :param bound: The fixed bound (low for upper search, high for lower search)
     :param k: Number of successes
     :param ntrials: Number of trials
-    :param c: Probability content
+    :param conflevel: Probability content
+    :param direction: Direction of search (UPPER or LOWER)
     :param root_finder: Root-finding algorithm to use (default: bisect)
-    :returns: The lower edge of the interval
+    :returns: The boundary value
     """
-    integral = beta_ab(0.0, high, k, ntrials)
-    if integral == c:
-        return 0.0
-    if integral < c:
-        raise ValueError(
-            f"Cannot find lower bound: insufficient mass from 0.0 to {high} "
-            f"(integral={integral}, required={c})"
-        )
+    if direction == BoundDirection.UPPER:
+        integral = beta_ab(bound, 1.0, k, ntrials)
+        if integral == conflevel:
+            return 1.0
+        if integral < conflevel:
+            raise ValueError(
+                "Cannot find upper bound: insufficient mass from "
+                f"{bound} to 1.0 (integral={integral}, required={conflevel})"
+            )
 
-    # Use root_finder for root finding
-    def func(x: float) -> float:
-        return beta_ab(x, high, k, ntrials) - c
+        def func(x: float) -> float:
+            return beta_ab(bound, x, k, ntrials) - conflevel
+
+        a, b = bound, 1.0
+        error_msg = (
+            f"Bisection failed for upper bound search from {bound} to 1.0"
+        )
+    elif direction == BoundDirection.LOWER:
+        integral = beta_ab(0.0, bound, k, ntrials)
+        if integral == conflevel:
+            return 0.0
+        if integral < conflevel:
+            raise ValueError(
+                "Cannot find lower bound: insufficient mass from "
+                f"0.0 to {bound} (integral={integral}, required={conflevel})"
+            )
+
+        def func(x: float) -> float:
+            return beta_ab(x, bound, k, ntrials) - conflevel
+
+        a, b = 0.0, bound
+        error_msg = (
+            f"Bisection failed for lower bound search from 0.0 to {bound}"
+        )
+    else:
+        raise ValueError("Invalid direction")
 
     try:
-        return float(root_finder(func, 0.0, high, xtol=1e-12))
+        return float(root_finder(func, a, b, xtol=1e-12))
     except ValueError:
-        raise ValueError(
-            f"Bisection failed for lower bound search from 0.0 to {high}"
-        ) from None
+        raise ValueError(error_msg) from None
 
 
-def interval(low: float, k: int, N: int, conflevel: float) -> float:
+def beta_logpdf(x: float, k: int, ntrials: int) -> float:
     """
-    Return the length of the interval starting at low that contains
-    conflevel of the beta distribution.
+    Compute the log probability density function of the Beta distribution.
 
-    :param low: Starting point of the interval
-    :param k: Number of successes
-    :param N: Number of trials
-    :param conflevel: Confidence level
-    :returns: The length of the interval
+    This is numerically stable for small x or 1-x.
+
+    :param x: Point at which to evaluate the PDF (0 < x < 1)
+    :param k: Number of successes (k >= 0)
+    :param ntrials: Number of trials (ntrials > k)
+    :returns: The log PDF value at x
     """
-    high = searchupper(low, k, N, conflevel, DEFAULT_ROOT_FINDER_BISECT)
-    return high - low
+    alpha = k + 1
+    beta_param = ntrials - k + 1
+    log_pdf = (
+        (alpha - 1) * np.log(x)
+        + (beta_param - 1) * np.log(1 - x)
+        - betaln(alpha, beta_param)
+    )
+    return float(log_pdf)
+
+
+def beta_pdf(x: float, k: int, ntrials: int) -> float:
+    """
+    Compute the probability density function of the Beta distribution.
+
+    :param x: Point at which to evaluate the PDF (0 < x < 1)
+    :param k: Number of successes (k >= 0)
+    :param ntrials: Number of trials (ntrials >= k)
+    :returns: The PDF value at x
+    """
+    return float(np.exp(beta_logpdf(x, k, ntrials)))
+
+
+def shortest_hpd_beta(
+    k: int, ntrials: int, conflevel: float, tol: float = 2e-12
+) -> tuple[float, float]:
+    """
+    Find the shortest HPD interval for the posterior Beta distribution
+    given k successes in ntrials.
+
+    The HPD interval is the shortest interval containing a specified
+    probability mass C. It uses the equal-height condition where the PDF
+    values at both endpoints are equal.
+
+    Based on: Hyndman, R. J. (1996). Computing and graphing highest density
+    regions.
+    The American Statistician, 50(2), 120-126.
+
+    :param k: Number of successes (k >= 0)
+    :param ntrials: Number of trials (ntrials > k)
+    :param conflevel: Probability mass to contain in the interval (0 < conflevel < 1)
+    :param tol: Tolerance for the binary search convergence
+    :returns: Tuple (a, b) where a, b are the bounds of the HPD interval
+    """
+    alpha = k + 1
+    beta_param = ntrials - k + 1
+
+    # Mode of the posterior Beta distribution
+    mode = k / ntrials
+
+    def equal_height_equation(a: float) -> float:
+        """
+        Equation for equal height: solve beta_pdf(a) = beta_pdf(b)
+        where F(b) = F(a) + conflevel.
+
+        :param a: Lower bound candidate
+        :returns: Difference in log PDF values (should be 0 for equal height)
+        """
+        # b such that CDF(b) - CDF(a) = conflevel
+        Fa = betainc(alpha, beta_param, a)
+        Fb_target = Fa + conflevel
+        if Fb_target > 1:
+            return 1.0  # Boundary case
+
+        # Invert CDF to find b
+        b = float(betaincinv(alpha, beta_param, Fb_target))
+
+        # Equal height condition: pdf(a) = pdf(b)
+        return beta_logpdf(a, k, ntrials) - beta_logpdf(b, k, ntrials)
+
+    # Binary search for a in [0, mode]
+    a_left, a_right = 0.0, mode
+    while a_right - a_left > tol:
+        a_mid = (a_left + a_right) / 2
+        if equal_height_equation(a_mid) > 0:
+            a_right = a_mid
+        else:
+            a_left = a_mid
+
+    a_opt = (a_left + a_right) / 2
+    Fa = betainc(alpha, beta_param, a_opt)
+    b_opt = float(betaincinv(alpha, beta_param, Fa + conflevel))
+
+    return a_opt, b_opt
 
 
 def effic(
@@ -296,6 +387,7 @@ def effic(
     ntrials: int,
     conflevel: float,
     root_finder: RootFinder = DEFAULT_ROOT_FINDER,
+    algorithm: HPDAlgorithm = HPDAlgorithm.BINARY_SEARCH,
 ) -> tuple[float, float, float]:
     """
     Calculate the Bayesian efficiency: mode and confidence interval.
@@ -304,6 +396,8 @@ def effic(
     :param ntrials: Number of trials
     :param conflevel: Confidence level (0 < conflevel < 1)
     :param root_finder: Root-finding algorithm to use (default: brentq)
+    :param algorithm: HPD interval algorithm to use
+        (default: BINARY_SEARCH)
     :returns: A tuple of (mode, low, high) where mode is the most probable
         efficiency, low and high are the bounds of the confidence interval
     :raises ValueError: If conflevel is not between 0 and 1
@@ -315,15 +409,8 @@ def effic(
     mode = k / ntrials
 
     # Highest posterior density interval
-    if k == 0:
-        low, high = compute_hpd_interval(k, ntrials, conflevel, root_finder)
-    elif k == ntrials:
-        low, high = compute_hpd_interval(k, ntrials, conflevel, root_finder)
-    else:
-        low, high = compute_hpd_interval(k, ntrials, conflevel, root_finder)
-
-    # Clamp bounds to [0, 1] (should not be necessary)
-    low = max(0.0, low)
-    high = min(1.0, high)
+    low, high = compute_hpd_interval(
+        k, ntrials, conflevel, root_finder, algorithm
+    )
 
     return mode, low, high

@@ -8,7 +8,7 @@ from typing import NamedTuple, NoReturn
 
 import typer
 
-from .effic import effic
+from .effic import HPDAlgorithm, RootFinder, effic
 
 
 class EfficiencyResult(NamedTuple):
@@ -70,18 +70,31 @@ def parse_efficiency_file(filename: str) -> list[tuple[int, int]]:
 
 
 def calculate_efficiencies(
-    data_pairs: list[tuple[int, int]], conflevel: float
+    data_pairs: list[tuple[int, int]],
+    conflevel: float,
+    algorithm: HPDAlgorithm | None = None,
+    root_finder: RootFinder | None = None,
 ) -> list[EfficiencyResult]:
     """
     Calculate efficiency confidence intervals for a list of (k, n) pairs.
 
     :param data_pairs: List of (successes, trials) pairs
     :param conflevel: Confidence level for calculations
+    :param algorithm: HPD algorithm to use (default: BINARY_SEARCH)
+    :param root_finder: Root-finding algorithm to use (default: brentq)
     :returns: List of efficiency calculation results
     """
+    if algorithm is None:
+        algorithm = HPDAlgorithm.BINARY_SEARCH
+    if root_finder is None:
+        from .effic import DEFAULT_ROOT_FINDER
+
+        root_finder = DEFAULT_ROOT_FINDER
     results = []
     for k, n in data_pairs:
-        mode, low, high = effic(k, n, conflevel)
+        mode, low, high = effic(
+            k, n, conflevel, root_finder=root_finder, algorithm=algorithm
+        )
         result = EfficiencyResult(k=k, n=n, mode=mode, low=low, high=high)
         results.append(result)
     return results
@@ -157,7 +170,12 @@ def output_efficiency_results(
 
 
 def parse_efficiency_data(
-    filename: str, conflevel: float, out: str | None, use_csv: bool
+    filename: str,
+    conflevel: float,
+    out: str | None,
+    use_csv: bool,
+    algorithm: HPDAlgorithm | None = None,
+    root_finder: RootFinder | None = None,
 ) -> None:
     """
     Parse efficiency data from file, calculate results, and output them.
@@ -166,10 +184,14 @@ def parse_efficiency_data(
     :param conflevel: Confidence level for calculations
     :param out: Output file path, or None for stdout
     :param use_csv: Whether to use CSV format (requires out to be set)
+    :param algorithm: HPD algorithm to use
+    :param root_finder: Root-finding algorithm to use
     :raises typer.Exit: For various error conditions
     """
     data_pairs = parse_efficiency_file(filename)
-    results = calculate_efficiencies(data_pairs, conflevel)
+    results = calculate_efficiencies(
+        data_pairs, conflevel, algorithm, root_finder
+    )
     output_efficiency_results(results, out, use_csv)
 
 

@@ -4,6 +4,8 @@ A Python project for calculating (binomial) efficiencies and their uncertainties
 The mathematical theory and derivation of the formulas can be found in [Fermilab Technical Memo 2286-cd](https://lss.fnal.gov/archive/test-tm/2000/fermilab-tm-2286-cd.pdf).
 If you use this software for published work, please cite this note.
 
+The default algorithm for finding the shortest interval is based on Hyndman, R. J. (1996). *Computing and graphing highest density regions*, The American Statistician, 50(2), 120-126.
+
 ## Installation
 
 ### From PyPI
@@ -152,5 +154,3 @@ The build system is configured to produce both PyPI and Conda packages.
     - Create a temporary environment and install the PyPI wheel, then run tests.
     - Create a second temporary environment and install the Conda package, then run tests.
     - Clean up the temporary environments afterward.
-    
-    This provides high confidence that both distribution methods work as expected.

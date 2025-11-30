@@ -3,6 +3,7 @@ Welcome to pycalceff's documentation!
 
 **pycalceff** is a Python package for calculating exact binomial efficiency confidence intervals using Bayesian methods with beta distributions.
 
+
 Overview
 --------
 
@@ -12,7 +13,6 @@ The core functionality includes:
 
 * **Bayesian Efficiency Calculations**: Compute efficiency estimates with confidence intervals using beta distribution methods
 * **Exact Binomial Confidence Intervals**: Calculate precise confidence intervals for binomial proportions
-* **Vectorized Operations**: Support for batch processing of multiple efficiency calculations
 * **Command-Line Interface**: Easy-to-use CLI for interactive efficiency calculations
 
 Installation
@@ -118,6 +118,10 @@ The statistical methods implemented in this package are based on:
 * Paterno, M. (2004). Calculating Efficiencies and Their Uncertainties.
   Fermilab Technical Memorandum TM-2286-CD.
   Available at: https://lss.fnal.gov/archive/test-tm/2000/fermilab-tm-2286-cd.pdf
+
+The default algorithm for finding the shortest interval is based on Hyndman, R. J. (1996), *Computing and graphing highest density regions*, The American Statistician, 50(2), 120-126.
+
+
 
 Contents
 --------

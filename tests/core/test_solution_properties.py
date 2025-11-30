@@ -11,12 +11,12 @@ from hypothesis import strategies as st
 
 from pycalceff.core.cli_utils import calculate_efficiencies
 from pycalceff.core.effic import (
+    BoundDirection,
+    HPDAlgorithm,
     beta_ab,
     effic,
-    interval,
     posterior_density,
-    searchlower,
-    searchupper,
+    search_bound,
 )
 
 # We test a wide range of confidence levels, but we have
@@ -26,16 +26,20 @@ SMALL_CONFLEVEL = 1e-3
 LARGE_CONFLEVEL = 1.0 - SMALL_CONFLEVEL
 
 
+@pytest.mark.parametrize(
+    "algorithm",
+    [HPDAlgorithm.ROOT_FINDING, HPDAlgorithm.BINARY_SEARCH],
+)
 @given(k_n_pair_strategy(), st.floats(SMALL_CONFLEVEL, LARGE_CONFLEVEL))
 def test_shortest_interval_property(
-    k_n_pair: tuple[int, int], conflevel: float
+    algorithm: HPDAlgorithm, k_n_pair: tuple[int, int], conflevel: float
 ) -> None:
     """Test that the returned interval is shorter than intervals
     obtained by shifting one end."""
     k, N = k_n_pair
 
     # Get the solution
-    results = calculate_efficiencies([(k, N)], conflevel)
+    results = calculate_efficiencies([(k, N)], conflevel, algorithm=algorithm)
     assert len(results) == 1
     result = results[0]
     low, high = result.low, result.high
@@ -47,7 +51,9 @@ def test_shortest_interval_property(
         delta_low = 0.05 * low  # 5% of the way toward zero
         new_low = max(0.0, low - delta_low)
         try:
-            new_high = searchupper(new_low, k, N, conflevel)
+            new_high = search_bound(
+                new_low, k, N, conflevel, BoundDirection.UPPER
+            )
             new_width = new_high - new_low
             assert new_width > original_width, (
                 "Shifting low end should produce longer interval"
@@ -61,7 +67,9 @@ def test_shortest_interval_property(
         delta_high = 0.05 * (1.0 - high)  # 5% of the way toward one
         new_high = min(1.0, high + delta_high)
         try:
-            new_low = searchlower(new_high, k, N, conflevel)
+            new_low = search_bound(
+                new_high, k, N, conflevel, BoundDirection.LOWER
+            )
             new_width = new_high - new_low
             assert new_width > original_width, (
                 "Shifting high end should produce longer interval"
@@ -97,14 +105,14 @@ def test_beta_ab_properties(
     k_n_pair_strategy(nmax=50),
     st.floats(SMALL_CONFLEVEL, LARGE_CONFLEVEL),
 )
-def test_searchupper_properties(
+def test_search_bound_upper_properties(
     low: float, k_n_pair: tuple[int, int], c: float
 ) -> None:
-    """Test searchupper properties."""
+    """Test search_bound properties for upper."""
     k, N = k_n_pair
 
     try:
-        result = searchupper(low, k, N, c)
+        result = search_bound(low, k, N, c, BoundDirection.UPPER)
         assert low <= result <= 1.0
         integral = beta_ab(low, result, k, N)
         assert integral == pytest.approx(c, abs=1e-10)
@@ -119,14 +127,14 @@ def test_searchupper_properties(
     k_n_pair_strategy(nmax=50),
     st.floats(SMALL_CONFLEVEL, LARGE_CONFLEVEL),
 )
-def test_searchlower_properties(
+def test_search_bound_lower_properties(
     high: float, k_n_pair: tuple[int, int], c: float
 ) -> None:
-    """Test searchlower properties."""
+    """Test search_bound properties for lower."""
     k, N = k_n_pair
 
     try:
-        result = searchlower(high, k, N, c)
+        result = search_bound(high, k, N, c, BoundDirection.LOWER)
         assert 0.0 <= result <= high
         integral = beta_ab(result, high, k, N)
         assert integral == pytest.approx(c, abs=1e-10)
@@ -136,34 +144,18 @@ def test_searchlower_properties(
         assert integral < c
 
 
-@given(
-    st.floats(0, 0.9),
-    k_n_pair_strategy(nmax=50),
-    st.floats(SMALL_CONFLEVEL, LARGE_CONFLEVEL),
+@pytest.mark.parametrize(
+    "algorithm",
+    [HPDAlgorithm.ROOT_FINDING, HPDAlgorithm.BINARY_SEARCH],
 )
-def test_interval_properties(
-    low: float, k_n_pair: tuple[int, int], conflevel: float
-) -> None:
-    """Test interval properties."""
-    k, N = k_n_pair
-
-    try:
-        result = interval(low, k, N, conflevel)
-        high = low + result
-        assert 0 <= high <= 1.0
-        integral = beta_ab(low, high, k, N)
-        assert integral == pytest.approx(conflevel, abs=1e-9)
-    except ValueError:
-        # Search failed, conflevel too large for this low
-        pass
-
-
 @given(k_n_pair_strategy(), st.floats(SMALL_CONFLEVEL, LARGE_CONFLEVEL))
-def test_effic_properties(k_n_pair: tuple[int, int], conflevel: float) -> None:
+def test_effic_properties(
+    algorithm: HPDAlgorithm, k_n_pair: tuple[int, int], conflevel: float
+) -> None:
     """Test effic properties with hypothesis."""
     k, N = k_n_pair
 
-    mode, low, high = effic(k, N, conflevel)
+    mode, low, high = effic(k, N, conflevel, algorithm=algorithm)
 
     # Basic properties
     assert 0 <= mode <= 1
@@ -181,13 +173,15 @@ def test_effic_properties(k_n_pair: tuple[int, int], conflevel: float) -> None:
     assert integral == pytest.approx(conflevel, abs=1e-9)
 
 
+@pytest.mark.parametrize("algorithm", list(HPDAlgorithm))
 @given(k_n_pair_strategy(), st.floats(0.1, LARGE_CONFLEVEL))
 def test_hpd_interval_properties(
-    k_n_pair: tuple[int, int], conflevel: float
+    algorithm: HPDAlgorithm, k_n_pair: tuple[int, int], conflevel: float
 ) -> None:
-    """Test HPD interval properties: equal density at endpoints and exact integral."""
+    """Test HPD interval properties: equal density at endpoints
+    and exact integral."""
     k, N = k_n_pair
-    _, low, high = effic(k, N, conflevel)
+    _, low, high = effic(k, N, conflevel, algorithm=algorithm)
 
     # For k > 0 and k < N, posterior density should be equal at endpoints
     if 0 < k < N:
@@ -198,3 +192,32 @@ def test_hpd_interval_properties(
     # The integral over the interval should equal the confidence level
     integral = beta_ab(low, high, k, N)
     assert integral == pytest.approx(conflevel, abs=1e-9)
+
+
+@given(k_n_pair_strategy(), st.floats(0.1, LARGE_CONFLEVEL))
+def test_hpd_algorithms_equivalence(
+    k_n_pair: tuple[int, int], conflevel: float
+) -> None:
+    """Test that both HPD algorithms produce equivalent results."""
+    k, N = k_n_pair
+
+    # Compute with both algorithms
+    mode1, low1, high1 = effic(
+        k, N, conflevel, algorithm=HPDAlgorithm.ROOT_FINDING
+    )
+    mode2, low2, high2 = effic(
+        k, N, conflevel, algorithm=HPDAlgorithm.BINARY_SEARCH
+    )
+
+    # Modes should be identical (same posterior)
+    assert mode1 == pytest.approx(mode2, abs=1e-12)
+
+    # Intervals should be very close (within numerical precision)
+    assert low1 == pytest.approx(low2, abs=1e-9)
+    assert high1 == pytest.approx(high2, abs=1e-9)
+
+    # Both should have the same integral (confidence level)
+    integral1 = beta_ab(low1, high1, k, N)
+    integral2 = beta_ab(low2, high2, k, N)
+    assert integral1 == pytest.approx(conflevel, abs=1e-9)
+    assert integral2 == pytest.approx(conflevel, abs=1e-9)
