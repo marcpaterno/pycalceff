@@ -40,7 +40,6 @@ dev = [
     "scipy-stubs",
     "hypothesis",
     "sphinx",
-    "sphinx-autodoc-typehints",
     "pydata-sphinx-theme",
     "sphinx-copybutton",
 ]
