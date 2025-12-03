@@ -3,7 +3,6 @@ Bayesian efficiency calculation module.
 
 This module provides functions for calculating exact binomial efficiency
 confidence intervals using Bayesian methods with beta distributions.
-Functions are translated from C++ implementations for numerical accuracy.
 """
 
 from collections.abc import Callable
@@ -60,12 +59,12 @@ def posterior_density(x: float, k: int, ntrials: int) -> float:
     Compute the posterior density of the beta distribution
     Beta(k+1, N-k+1) at point x.
 
-    :param x: Point at which to evaluate the density (0 < x < 1)
+    :param x: Point at which to evaluate the density (0 ≤ x ≤ 1)
     :param k: Number of successes
     :param ntrials: Number of trials
     :returns: The density value at x
     """
-    if not (0 < x < 1):
+    if not (0 <= x <= 1):
         return 0.0
     alpha = k + 1
     beta = ntrials - k + 1
@@ -79,8 +78,8 @@ def probability_mass(k: int, ntrials: int, low: float, high: float) -> float:
 
     :param k: Number of successes
     :param ntrials: Number of trials
-    :param low: Lower bound of the interval (0 ≤ low < high ≤ 1)
-    :param high: Upper bound of the interval (0 < low < high ≤ 1)
+    :param low: Lower bound of the interval (0 ≤ low < high ≤<1)
+    :param high: Upper bound of the interval (0 ≤ low < high ≤ 1)
     :returns: Probability mass between low and high
     """
     alpha = k + 1
@@ -139,7 +138,7 @@ def compute_hpd_interval_general(
 ) -> tuple[float, float]:
     """
     Compute the highest posterior density (HPD) interval
-    for 0 < k < ntrials.
+    for 0 < k < ntrials. Note the strict inequality.
 
     :param k: Number of successes
     :param ntrials: Number of trials
@@ -233,7 +232,7 @@ def search_bound(
 ) -> float:
     """
     Find the boundary (upper or lower) of the integration region that contains
-    probability content c, starting/ending at the given bound.
+    probability content conflevel, starting/ending at the given bound.
 
     :param bound: The fixed bound (low for upper search, high for lower search)
     :param k: Number of successes
@@ -294,7 +293,7 @@ def beta_logpdf(x: float, k: int, ntrials: int) -> float:
 
     :param x: Point at which to evaluate the PDF (0 < x < 1)
     :param k: Number of successes (k >= 0)
-    :param ntrials: Number of trials (ntrials > k)
+    :param ntrials: Number of trials (ntrials >= max(1,k))
     :returns: The log PDF value at x
     """
     alpha = k + 1
@@ -313,7 +312,7 @@ def beta_pdf(x: float, k: int, ntrials: int) -> float:
 
     :param x: Point at which to evaluate the PDF (0 < x < 1)
     :param k: Number of successes (k >= 0)
-    :param ntrials: Number of trials (ntrials >= k)
+    :param ntrials: Number of trials (ntrials >= max(1,k))
     :returns: The PDF value at x
     """
     return float(np.exp(beta_logpdf(x, k, ntrials)))
@@ -327,7 +326,7 @@ def shortest_hpd_beta(
     given k successes in ntrials.
 
     The HPD interval is the shortest interval containing a specified
-    probability mass C. It uses the equal-height condition where the PDF
+    probability mass conflevel. It uses the equal-height condition where the PDF
     values at both endpoints are equal.
 
     Based on: Hyndman, R. J. (1996). Computing and graphing highest density
@@ -335,7 +334,7 @@ def shortest_hpd_beta(
     The American Statistician, 50(2), 120-126.
 
     :param k: Number of successes (k >= 0)
-    :param ntrials: Number of trials (ntrials > k)
+    :param ntrials: Number of trials (ntrials >= max(1,k))(
     :param conflevel: Probability mass to contain in the interval (0 < conflevel < 1)
     :param tol: Tolerance for the binary search convergence
     :returns: Tuple (a, b) where a, b are the bounds of the HPD interval
