@@ -8,16 +8,8 @@ The default algorithm for finding the shortest interval is based on Hyndman, R. 
 
 ## Installation
 
-### From PyPI
-
 ```bash
 pip install pycalceff
-```
-
-### From conda-forge
-
-```bash
-conda install -c conda-forge pycalceff
 ```
 
 ## Usage
