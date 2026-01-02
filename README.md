@@ -135,22 +135,21 @@ The `Makefile` contains targets for common development tasks.
 
 ### Packaging and Release Workflow
 
-The build system is configured to produce both PyPI and Conda packages.
+The build system is configured to produce PyPI packages.
 
 1.  **Build the packages:**
-    To build the sdist and wheel for PyPI and to build the Conda package, use the `build` target.
+    To build the sdist and wheel for PyPI, use the `build` target.
     ```bash
     make build
     ```
     The PyPI artifacts will be in the `dist/` directory.
 
-2.  **Test local package installations:**
-    Before publishing, you can test both the PyPI and Conda packages in clean, isolated environments without uploading them anywhere. This is the most important verification step.
+2.  **Test local package installation:**
+    Before publishing, you can test the PyPI package in a clean, isolated environment without uploading it anywhere. This is the most important verification step.
     ```bash
     make test-install
     ```
     This command will:
     - Build the packages.
     - Create a temporary environment and install the PyPI wheel, then run tests.
-    - Create a second temporary environment and install the Conda package, then run tests.
-    - Clean up the temporary environments afterward.
+    - Clean up the temporary environment afterward.

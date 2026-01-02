@@ -27,14 +27,5 @@ def get_data_file(filename: str) -> Path:
     >>> with open(data_path) as f:
     ...     data = f.read()
     """
-    try:
-        # Python 3.9+
-        files = importlib.resources.files("pycalceff.data")
-        return Path(str(files / filename))
-    except AttributeError:
-        # Python < 3.9
-        import pkg_resources
-
-        return Path(
-            pkg_resources.resource_filename("pycalceff.data", filename)
-        )
+    files = importlib.resources.files("pycalceff.data")
+    return Path(str(files / filename))

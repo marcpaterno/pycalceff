@@ -1,5 +1,5 @@
 
-.PHONY: help setup install test docs docs-api build publish test-pypi-install test-conda-install test-install clean clean-install-env
+.PHONY: help setup install test docs docs-api build check-dist publish-test publish test-pypi-install test-install clean
 
 help:
 	@echo "Commands:"
@@ -14,12 +14,12 @@ help:
 	@echo "  docs     : build HTML documentation with Sphinx"
 	@echo "  docs-api : regenerate API documentation RST files"
 	@echo "  build    : build the sdist and wheel"
+	@echo "  check-dist: validate distribution files with twine"
+	@echo "  publish-test: upload to TestPyPI"
 	@echo "  publish  : publish the package to PyPI"
 	@echo "  test-pypi-install: test PyPI wheel installation locally"
-	@echo "  test-conda-install: test conda package installation locally"
-	@echo "  test-install: test both PyPI and conda installations locally"
+	@echo "  test-install: test PyPI installation locally"
 	@echo "  clean    : remove temporary files"
-	@echo "  clean-install-env: remove the pycalceff-install conda environment"
 
 setup:
 	@echo "Creating conda environment..."
@@ -62,10 +62,26 @@ build:
 	@rm -rf dist
 	@python -m build
 
-publish:
-	@echo "NOTE: Uncomment the following lines to publish to TestPyPI or PyPI"
-	@# twine upload --repository testpypi dist/*
-	@# twine upload dist/*
+check-dist: build
+	@echo "Checking distribution files..."
+	twine check dist/*
+	@echo "Distribution check passed!"
+
+publish-test: check-dist
+	@echo "Uploading to TestPyPI..."
+	twine upload --repository testpypi dist/*
+	@echo "Published to TestPyPI: https://test.pypi.org/project/pycalceff/"
+
+publish: check-dist
+	@echo "WARNING: This will upload to PyPI (production)!"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		twine upload dist/*; \
+		echo "Published to PyPI: https://pypi.org/project/pycalceff/"; \
+	else \
+		echo "Upload cancelled."; \
+	fi
 
 test-pypi-install: build
 	@echo "Testing PyPI wheel installation locally..."
@@ -76,11 +92,8 @@ test-pypi-install: build
 	@echo "PyPI installation test passed!"
 	@conda env remove -n pycalceff-test-pypi -y
 
-test-conda-install:
-	@./scripts/test-conda-install.sh
-
-test-install: test-pypi-install test-conda-install
-	@echo "All installation tests passed!"
+test-install: test-pypi-install
+	@echo "Installation test passed!"
 
 clean:
 	rm -rf .pytest_cache .mypy_cache dist build *.egg-info
@@ -89,9 +102,4 @@ clean:
 	rm -rf .hypothesis .coverage .ruff_cache
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" -delete
-
-clean-install-env:
-	@echo "Removing pycalceff-install environment..."
-	conda env remove -n pycalceff-install -y || true
-	@echo "Done."
 

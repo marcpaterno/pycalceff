@@ -121,3 +121,6 @@ dmypy.json
 # Profile data
 *.prof
 data.txt
+
+# PyPI configuration (contains tokens)
+.pypirc

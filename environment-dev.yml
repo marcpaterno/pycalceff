@@ -2,8 +2,7 @@ name: pycalceff-dev
 channels:
   - conda-forge
 dependencies:
-  - python >=3.11
+  - python >=3.12
   - pip
   - pytest-xdist
-  - build
-  - grayskull
+  - twine
