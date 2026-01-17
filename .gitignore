@@ -124,3 +124,8 @@ data.txt
 
 # PyPI configuration (contains tokens)
 .pypirc
+
+# Conda build artifacts
+.conda/
+conda-bld/
+*.tar.bz2

@@ -6,3 +6,4 @@ dependencies:
   - pip
   - pytest-xdist
   - twine
+  - conda-build

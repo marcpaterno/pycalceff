@@ -1,5 +1,5 @@
 
-.PHONY: help setup install test docs docs-api build check-dist publish-test publish test-pypi-install test-install clean
+.PHONY: help setup install test docs docs-api build check-dist publish-test publish test-pypi-install test-install conda-recipe conda-build clean
 
 help:
 	@echo "Commands:"
@@ -19,6 +19,8 @@ help:
 	@echo "  publish  : publish the package to PyPI"
 	@echo "  test-pypi-install: test PyPI wheel installation locally"
 	@echo "  test-install: test PyPI installation locally"
+	@echo "  conda-recipe: regenerate conda recipe from PyPI"
+	@echo "  conda-build: build conda package locally"
 	@echo "  clean    : remove temporary files"
 
 setup:
@@ -94,6 +96,20 @@ test-pypi-install: build
 
 test-install: test-pypi-install
 	@echo "Installation test passed!"
+
+conda-recipe:
+	@echo "Regenerating conda recipe from PyPI..."
+	@grayskull pypi pycalceff
+	@mv pycalceff/meta.yaml conda.recipe/
+	@rmdir pycalceff
+	@echo "Recipe updated in conda.recipe/meta.yaml"
+	@echo "NOTE: Review and adjust Python version constraints if needed"
+
+conda-build:
+	@echo "Building conda package locally..."
+	@command -v conda-build >/dev/null 2>&1 || { echo "ERROR: conda-build not installed. Run: conda install conda-build"; exit 1; }
+	conda build conda.recipe/
+	@echo "Build complete! Install locally with: conda install --use-local pycalceff"
 
 clean:
 	rm -rf .pytest_cache .mypy_cache dist build *.egg-info
