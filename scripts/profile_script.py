@@ -32,7 +32,7 @@ def main() -> None:
     if len(sys.argv) != 3:
         print(
             "Usage: python profile_script.py <root_finder> <algorithm>",
-            file=sys.stderr
+            file=sys.stderr,
         )
         supported_finders = ", ".join(SUPPORTED_ROOT_FINDERS.keys())
         print(f"Supported root finders: {supported_finders}", file=sys.stderr)
