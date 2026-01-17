@@ -1,5 +1,13 @@
 # pycalceff
 
+[![CI](https://github.com/marcpaterno/pycalceff/workflows/CI/badge.svg)](https://github.com/marcpaterno/pycalceff/actions)
+[![codecov](https://codecov.io/gh/marcpaterno/pycalceff/branch/master/graph/badge.svg)](https://codecov.io/gh/marcpaterno/pycalceff)
+[![PyPI version](https://badge.fury.io/py/pycalceff.svg)](https://badge.fury.io/py/pycalceff)
+[![conda-forge](https://img.shields.io/conda/vn/conda-forge/pycalceff.svg)](https://anaconda.org/conda-forge/pycalceff)
+[![Python versions](https://img.shields.io/pypi/pyversions/pycalceff.svg)](https://pypi.org/project/pycalceff/)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Downloads](https://static.pepy.tech/badge/pycalceff)](https://pepy.tech/project/pycalceff)
+
 A Python project for calculating (binomial) efficiencies and their uncertainties.
 The mathematical theory and derivation of the formulas can be found in [Fermilab Technical Memo 2286-cd](https://lss.fnal.gov/archive/test-tm/2000/fermilab-tm-2286-cd.pdf).
 If you use this software for published work, please cite this note.
