@@ -26,9 +26,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    "typer",
-    "rich",
-    "scipy",
+    "typer>=0.12.0",
+    "rich>=12.0.0",
+    "scipy>=1.13.0",
+    "numpy>=2.0",
 ]
 
 [project.urls]
