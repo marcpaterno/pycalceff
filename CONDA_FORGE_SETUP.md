@@ -189,7 +189,7 @@ To test your recipe locally before submitting:
 conda install conda-build
 
 # Build the package
-conda build recipes/pycalceff/
+make conda-smoke-test
 
 # If successful, test installation
 conda install --use-local pycalceff

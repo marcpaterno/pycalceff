@@ -35,7 +35,8 @@ Follow the detailed instructions in **CONDA_FORGE_SETUP.md**. Here's the quick v
 conda install conda-build
 
 # Test building the package
-make conda-build
+# Test building the package
+make conda-smoke-test
 
 # If successful, test installation
 conda install --use-local pycalceff
@@ -100,11 +101,8 @@ After the initial setup, every new PyPI release triggers automation:
 ## Useful Commands
 
 ```bash
-# Regenerate recipe from PyPI (for updates)
-make conda-recipe
-
 # Build conda package locally (for testing)
-make conda-build
+make conda-smoke-test
 
 # Show all Makefile commands
 make help

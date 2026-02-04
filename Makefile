@@ -20,7 +20,7 @@ help:
 	@echo "  test-pypi-install: test PyPI wheel installation locally"
 	@echo "  test-install: test PyPI installation locally"
 	@echo "  conda-recipe: regenerate conda recipe from PyPI"
-	@echo "  conda-build: build conda package locally"
+	@echo "  conda-smoke-test: build conda package locally (smoke test)"
 	@echo "  clean    : remove temporary files"
 
 setup:
@@ -97,16 +97,8 @@ test-pypi-install: build
 test-install: test-pypi-install
 	@echo "Installation test passed!"
 
-conda-recipe:
-	@echo "Regenerating conda recipe from PyPI..."
-	@grayskull pypi pycalceff
-	@mv pycalceff/meta.yaml conda.recipe/
-	@rmdir pycalceff
-	@echo "Recipe updated in conda.recipe/meta.yaml"
-	@echo "NOTE: Review and adjust Python version constraints if needed"
-
-conda-build:
-	@echo "Building conda package locally..."
+conda-smoke-test:
+	@echo "Building conda package locally (smoke test)..."
 	@command -v conda-build >/dev/null 2>&1 || { echo "ERROR: conda-build not installed. Run: conda install conda-build"; exit 1; }
 	conda build conda.recipe/
 	@echo "Build complete! Install locally with: conda install --use-local pycalceff"
@@ -118,4 +110,3 @@ clean:
 	rm -rf .hypothesis .coverage .ruff_cache
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" -delete
-
