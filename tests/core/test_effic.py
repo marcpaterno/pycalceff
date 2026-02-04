@@ -6,7 +6,6 @@ Tests the mathematical functions in effic.py using unit tests and hypothesis.
 
 import pytest
 import scipy.stats as stats
-
 from pycalceff.core.effic import (
     BoundDirection,
     beta_ab,

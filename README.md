@@ -80,7 +80,7 @@ Example input file:
 Example console output:
 
 ```
-Efficiency Results                   
+Efficiency Results
 ┏━━━━┳━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃  k ┃  n ┃         Mode ┃          Low ┃         High ┃
 ┡━━━━╇━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩

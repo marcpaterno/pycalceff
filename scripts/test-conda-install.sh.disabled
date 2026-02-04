@@ -179,4 +179,3 @@ log_success "${IMPORT_TEST}"
 SCRIPT_STATUS="success"
 log_success "🎉 All tests passed successfully!"
 log_success "✅ Conda installation test completed!"
-

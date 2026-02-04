@@ -6,9 +6,8 @@ Tests the main CLI commands and argument processing.
 
 import sys
 
-from typer.testing import CliRunner
-
 from pycalceff.main import app, process_argv
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

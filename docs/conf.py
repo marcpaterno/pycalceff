@@ -7,6 +7,7 @@ project = "pycalceff"
 copyright = "2025, Marc Paterno"
 author = "Marc Paterno"
 import pycalceff
+
 release = pycalceff.__version__
 
 # -- General configuration ---------------------------------------------------

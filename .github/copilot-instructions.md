@@ -52,7 +52,7 @@ make check
 This runs:
 - `ruff format .`
 - `ruff check .` - Linting
-- `mypy src/` - Type checking  
+- `mypy src/` - Type checking
 - `pytest` - All tests
 
 ### Files to Check
@@ -84,14 +84,14 @@ When `make check` reports errors, fix them immediately according to these priori
   except ValueError as e:
       print(f"Error: {e}")
       raise typer.Exit(code=1)
-  
+
   # GOOD - Known exception, suppress chain
   try:
       something()
   except ValueError as e:
       print(f"Error: {e}")
       raise typer.Exit(code=1) from None
-  
+
   # GOOD - Unexpected exception, preserve chain
   try:
       something()
@@ -145,7 +145,7 @@ def parse_note(file_path: str) -> NoteData | None:
     """Parse a note file."""
     if not file_path:
         return None
-    
+
     result: NoteData = {
         "title": "Example",
         "content": "Content",
@@ -345,7 +345,7 @@ make check
 
 ## Summary
 
-✅ **ALWAYS activate conda environment first**  
-✅ **ALWAYS run `make check` before committing**  
-✅ **ALWAYS fix all ruff, mypy, and pytest errors**  
-✅ **NEVER commit code that fails checks**  
+✅ **ALWAYS activate conda environment first**
+✅ **ALWAYS run `make check` before committing**
+✅ **ALWAYS fix all ruff, mypy, and pytest errors**
+✅ **NEVER commit code that fails checks**

@@ -8,7 +8,6 @@ import pytest
 from conftest import k_n_pair_strategy
 from hypothesis import given
 from hypothesis import strategies as st
-
 from pycalceff.core.cli_utils import calculate_efficiencies
 from pycalceff.core.effic import (
     BoundDirection,
