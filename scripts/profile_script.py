@@ -7,9 +7,10 @@ from functools import partial
 from pstats import SortKey
 from typing import cast
 
+from scipy.optimize import bisect, brenth, brentq, ridder, toms748
+
 from pycalceff.core.cli_utils import parse_efficiency_file
 from pycalceff.core.effic import HPDAlgorithm, RootFinder, effic
-from scipy.optimize import bisect, brenth, brentq, ridder, toms748
 
 # Supported root finders
 SUPPORTED_ROOT_FINDERS: dict[str, RootFinder] = {
