@@ -6,7 +6,8 @@
 project = "pycalceff"
 copyright = "2025, Marc Paterno"
 author = "Marc Paterno"
-release = "0.1.0"
+import pycalceff
+release = pycalceff.__version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

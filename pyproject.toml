@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pycalceff"
-version = "1.0.1"
+dynamic = ["version"]
 authors = [
   { name="Marc Paterno", email="paterno@fnal.gov" },
 ]
@@ -95,3 +95,5 @@ addopts = "-ra -q"
 testpaths = [
     "tests",
 ]
+
+[tool.setuptools_scm]
