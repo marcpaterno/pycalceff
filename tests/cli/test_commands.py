@@ -7,8 +7,9 @@ Tests the Typer-based command-line interface commands.
 import sys
 from pathlib import Path
 
-from pycalceff.main import app, process_argv
 from typer.testing import CliRunner
+
+from pycalceff.main import app, process_argv
 
 runner = CliRunner()
 

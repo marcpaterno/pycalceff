@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 import typer
+from pytest import CaptureFixture
+
 from pycalceff.core.cli_utils import (
     EfficiencyResult,
     calculate_efficiencies,
@@ -19,7 +21,6 @@ from pycalceff.core.cli_utils import (
     validate_confidence_level,
     validate_conflevel_input,
 )
-from pytest import CaptureFixture
 
 
 def test_parse_efficiency_file_valid(tmp_path: Path) -> None:
