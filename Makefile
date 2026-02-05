@@ -28,7 +28,7 @@ setup:
 	conda env create -f environment-dev.yml
 	@echo "NOTE: Please activate the 'pycalceff-dev' conda environment before running 'make install'."
 
-install:
+install: check-no-spack
 	@echo "Uninstalling existing package installation..."
 	pip uninstall -y pycalceff || true
 	@echo "Installing package in editable mode with dev dependencies..."
@@ -37,7 +37,7 @@ install:
 format:
 	ruff format src tests
 
-typecheck:
+typecheck: check-no-spack
 	mypy -p src -p tests
 
 lint:
@@ -48,7 +48,7 @@ fix:
 
 check: format lint typecheck test
 
-test:
+test: check-no-spack
 	pytest --numprocesses auto --cov=pycalceff --cov-branch --cov-report=term-missing --durations 10 tests
 
 docs: docs-api
@@ -85,7 +85,7 @@ publish: check-dist
 		echo "Upload cancelled."; \
 	fi
 
-test-pypi-install: build
+test-pypi-install: check-no-spack build
 	@echo "Testing PyPI wheel installation locally..."
 	@conda create -n pycalceff-test-pypi python=3.13 -y
 	@conda run -n pycalceff-test-pypi pip install dist/pycalceff-*.whl
@@ -97,7 +97,14 @@ test-pypi-install: build
 test-install: test-pypi-install
 	@echo "Installation test passed!"
 
-conda-smoke-test:
+check-no-spack:
+	@if [ -n "$${SPACK_ENV}" ]; then \
+		echo "ERROR: Spack environment detected (SPACK_ENV=$${SPACK_ENV})."; \
+		echo "Please deactivate Spack (run 'despacktivate' or 'spack env deactivate') before running this command."; \
+		exit 1; \
+	fi
+
+conda-smoke-test: check-no-spack
 	@echo "Building conda package locally (smoke test)..."
 	@command -v conda-build >/dev/null 2>&1 || { echo "ERROR: conda-build not installed. Run: conda install conda-build"; exit 1; }
 	conda build conda.recipe/
